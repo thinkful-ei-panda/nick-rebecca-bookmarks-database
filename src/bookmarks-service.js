@@ -18,15 +18,15 @@ const BookmarksService = {
       .where('id', id)
       .first();
   },
-  deleteArticle(knex, id) {
+  deleteBookmark(knex, id) {
     return knex('bookmarks')
       .where({ id })
       .delete();
   },
-  updateArticle(knex, id, newBookMark) {
+  updateBookmark(knex, id, newBookmark) {
     return knex('bookmarks')
       .where({ id })
-      .update(newBookMark);
+      .update(newBookmark);
   }
 };
 
