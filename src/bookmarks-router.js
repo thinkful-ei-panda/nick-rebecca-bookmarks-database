@@ -1,36 +1,42 @@
 const express = require('express');
+const xss = require('xss');
 const { v4: uuid } = require('uuid');
 const logger = require('./logger');
-const { bookmarks } = require('../test/bookmarks.fixtures');
+
 const bookmarksRouter = express.Router();
 const bodyParser = express.json();
 const BookmarksService = require('./bookmarks-service');
 
+const serializeBookmark = bookmark => ({
+  id: bookmark.id,
+  title: xss(bookmark.title),
+  url: bookmark.url,
+  description: xss(bookmark.description),
+  rating: Number(bookmark.rating),
+});
+
 bookmarksRouter
-  .route('/bookmarks')
+  .route('/api/bookmarks')
   .get((req, res, next) => {
     const db = req.app.get('db');
     BookmarksService.getAllBookmarks(db)
       .then(bookmarks => {
-        res.json(bookmarks);
+        res.json(bookmarks.map(serializeBookmark));
       })
       .catch(next);
   })
   .post(bodyParser, (req, res) => {
-    const { title, content } = req.body;
-    if (!title) {
-      logger.error('Title is required');
-      return res
-        .status(400)
-        .send('Invalid data');
+    for (const field of ['title', 'url', 'rating']) {
+      if (!req.body[field]) {
+        logger.error(`${field} is required`);
+        return res.status(400).send({
+          error: { message: `${field} is required` }
+        });
+      }
     }
 
-    if (!content) {
-      logger.error('Content is required');
-      return res
-        .status(400)
-        .send('Invalid data');
-    }
+    const { title, content } = req.body;
+
     // get an id
     const id = uuid();
 
@@ -40,7 +46,7 @@ bookmarksRouter
       content
     };
 
-    bookmarks.push(bookmark);
+    //bookmarks.push(bookmark);
     logger.info(`Bookmarks with id ${id} created`);
 
     res
@@ -52,7 +58,7 @@ bookmarksRouter
   });
 
 bookmarksRouter
-  .route('/bookmarks/:id')
+  .route('/api/bookmarks/:id')
   .get((req, res, next) => {
     const db = req.app.get('db');
     const { id } = req.params;
@@ -72,16 +78,16 @@ bookmarksRouter
     const { id } = req.params;
 
     // eslint-disable-next-line eqeqeq
-    const bookmarkIndex = bookmarks.findIndex(b => b.id == id);
+    //const bookmarkIndex = bookmarks.findIndex(b => b.id == id);
 
-    if (bookmarkIndex === -1) {
-      logger.error(`Card with id ${id} not found.`);
-      return res
-        .status(404)
-        .send('Not found');
-    }
+    // if (bookmarkIndex === -1) {
+    //   logger.error(`Card with id ${id} not found.`);
+    //   return res
+    //     .status(404)
+    //     .send('Not found');
+    // }
 
-    bookmarks.splice(bookmarkIndex, 1);
+    //bookmarks.splice(bookmarkIndex, 1);
 
     logger.info(`Bookmark with id ${id} deleted.`);
 
