@@ -1,14 +1,20 @@
 const express = require('express');
 const { v4: uuid } = require('uuid');
 const logger = require('./logger');
-const { bookmarks } = require('./store');
+const { bookmarks } = require('../test/bookmarks.fixtures');
 const bookmarksRouter = express.Router();
 const bodyParser = express.json();
+const BookmarksService = require('./bookmarks-service');
 
 bookmarksRouter
   .route('/bookmarks')
-  .get((req, res) => {
-    res.json(bookmarks);
+  .get((req, res, next) => {
+    const db = req.app.get('db');
+    BookmarksService.getAllBookmarks(db)
+      .then(bookmarks => {
+        res.json(bookmarks);
+      })
+      .catch(next);
   })
   .post(bodyParser, (req, res) => {
     const { title, content } = req.body;
@@ -47,23 +53,25 @@ bookmarksRouter
 
 bookmarksRouter
   .route('/bookmarks/:id')
-  .get((req, res) => {
+  .get((req, res, next) => {
+    const db = req.app.get('db');
     const { id } = req.params;
-    const bookmark = bookmarks.find(c => c.id == id);
-
-    // make sure we found a card
-    if (!bookmark) {
-      logger.error(`Card with id ${id} not found.`);
-      return res
-        .status(404)
-        .send('404 Card Not Found');
-    }
-
-    res.json(bookmark);
+    BookmarksService.getById(db, id)
+      .then(article => {
+        if (!article) {
+          logger.error(`Card with id ${id} not found.`);
+          return res.status(404).json({
+            error: { message: 'Bookmark doesn\'t exist' }
+          });
+        }
+        res.json(article);
+      })
+      .catch(next);
   })
   .delete((req, res) => {
     const { id } = req.params;
 
+    // eslint-disable-next-line eqeqeq
     const bookmarkIndex = bookmarks.findIndex(b => b.id == id);
 
     if (bookmarkIndex === -1) {
