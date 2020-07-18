@@ -269,4 +269,91 @@ describe('Bookmarks Endpoints', function () {
         });
     });
   });
+
+  describe.only('PATCH /api/bookmarks/:id', () => {
+    context('Given no articles', () => {
+      it('responds with 404', () => {
+        const bookmarkId = 123456;
+        return supertest(app)
+          .patch(`/api/bookmarks/${bookmarkId}`)
+          .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+          .expect(404, { error: { message: 'Bookmark Not Found' } });
+      });
+    });
+
+    context('Given there are articles in the database', () => {
+      const testBookmarks = makeBookmarksArray();
+
+      beforeEach('insert articles', () => {
+        return db
+          .into('bookmarks')
+          .insert(testBookmarks);
+      });
+
+      it('responds with 204 and updates the bookmark', () => {
+        const idToUpdate = 1;
+        const updateBookmark = {
+          title: 'SomeWebsite',
+          url: 'https://www.youtube.com/watch?v=x0yNKU-tz1Y',
+          rating: 5,
+          description: 'some kinda description'
+        };
+        const expectedBookmark = {
+          ...testBookmarks[idToUpdate - 1],
+          ...updateBookmark
+        };
+        return supertest(app)
+          .patch(`/api/bookmarks/${idToUpdate}`)
+          .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+          .send(updateBookmark)
+          .expect(204)
+          .then(res =>
+            supertest(app)
+              .get(`/api/bookmarks/${idToUpdate}`)
+              .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+              .expect(expectedBookmark)
+          );
+      });
+
+      it('responds with 400 when no required fields supplied', () => {
+        const idToUpdate = 1;
+        return supertest(app)
+          .patch(`/api/bookmarks/${idToUpdate}`)
+          .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+          .send({ irrelivantKey: 'goo' })
+          .expect(400, {
+            error: {
+              message: 'Request body must contain either \'title\', \'url\', \'rating\', or \'description\''
+            }
+          });
+      });
+
+      it('responds with 204 when updating only a subset of fields', () => {
+        const idToUpdate = 2;
+        const updateBookmark = {
+          title: 'updated bookmark title',
+        };
+        const expectedBookmark = {
+          ...testBookmarks[idToUpdate - 1],
+          ...updateBookmark
+        }
+
+        return supertest(app)
+          .patch(`/api/bookmarks/${idToUpdate}`)
+          .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+          .send({
+            ...updateBookmark,
+            fieldToIgnore: 'shoudl not be in GET response'
+          })
+          .expect(204)
+          .then(res =>
+            supertest(app)
+              .get(`/api/bookmarks/${idToUpdate}`)
+              .set('Authorization', `Bearer ${process.env.API_TOKEN}`)
+              .expect(expectedBookmark)
+          );
+      });
+    });
+  });
+
 });

@@ -94,7 +94,6 @@ bookmarksRouter
         next();
       })
       .catch(next);
-
   })
   .get((req, res) => {
     res.json(serializeBookmark(res.bookmark));
@@ -108,6 +107,29 @@ bookmarksRouter
     )
       .then(numRowsAffected => {
         logger.info(`Bookmark with id ${id} deleted.`);
+        res.status(204).end();
+      })
+      .catch(next);
+  })
+  .patch(bodyParser, (req, res, next) => {
+    const { title, url, description, rating } = req.body;
+    const bookmarkToUpdate = { title, url, description, rating };
+
+    const numberOfValues = Object.values(bookmarkToUpdate).filter(Boolean).length;
+    if (numberOfValues === 0) {
+      return res.status(400).json({
+        error: {
+          message: 'Request body must contain either \'title\', \'url\', \'rating\', or \'description\''
+        }
+      });
+    }
+
+    BookmarksService.updateBookmark(
+      req.app.get('db'),
+      req.params.id,
+      bookmarkToUpdate
+    )
+      .then(bookmarkToUpdate => {
         res.status(204).end();
       })
       .catch(next);
